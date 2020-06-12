@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Bear den</title>
+    <style>
+      @font-face {
+        font-family: "science-gothic";
+        src: url("https://raw.githubusercontent.com/tphinney/science-gothic/master/fonts/variable/UFO%20FontMake/ScienceGothic%5BYOPQ%2Cwdth%2Cwght%2Cslnt%5D.ttf")
+          format("truetype");
+      }
+      h1 {
+        color: #6cee45;
+        font-variation-settings: "wght" 500, "wdth" 80.6, "YOPQ" 37.21,
+          "slnt" -10;
+        margin-block-end: 1rem;
+      }
+
+      h2 {
+        font-variation-settings: "wght" 100, "wdth" 80.6, "YOPQ" 37.21,
+          "slnt" -10;
+        /* font-size: small; */
+        font-size: 16px;
+        margin-right: 4px;
+      }
+
+      * {
+        margin-block-end: 0;
+      }
+
+      p {
+        color: #ccc;
+      }
+
+      body {
+        font-family: "science-gothic";
+        color: #999;
+        background-color: #000;
+        font-size: 16px;
+      }
+
+      table {
+        margin-top: 8px;
+        border: 1px solid #999;
+      }
+
+      th {
+        border: 1px solid #999;
+      }
+
+      th,
+      td {
+        text-align: center;
+        padding: 8px;
+      }
+
+      progress {
+        width: 100%;
+        height: 4px;
+        background-color: transparent;
+        appearance: none;
+        -webkit-appearance: none;
+      }
+
+      progress[value]::-webkit-progress-bar {
+        background-color: transparent;
+      }
+
+      progress[value]::-webkit-progress-value {
+        background-color: #6cee45;
+      }
+    </style>
+    <script>
+      window.spotifyToken = "{{ token }}";
+      window.codeStats = JSON.parse('{{ code_stats|safe }}'); // prettier-ignore
+      console.log(codeStats);
+    </script>
+  </head>
+
+  <body>
+    <h1>In the bear den</h1>
+    <div style="display: flex; align-items: center;">
+      <h2>Currently playing:</h2>
+      <p id="song"></p>
+    </div>
+    <progress id="song-progress" max="100" value="0"></progress>
+    <h2>Code stats: <span style="opacity: 0.7;">(Diff from master)</span></h2>
+    <table>
+      <thead>
+        <tr id="repo-header"></tr>
+      </thead>
+      <tbody id="repo-body"></tbody>
+    </table>
+    <div style="display: flex; align-items: center;">
+      <h2>Been waiting for a webcam:</h2>
+      <p id="timer"></p>
+    </div>
+    <script>
+      const stats = window.codeStats;
+      if (stats) {
+        const header = document.getElementById("repo-header");
+        const repoBody = document.getElementById("repo-body");
+        stats.forEach(({ repoName, diff, log }) => {
+          const repoHeader = document.createElement("th");
+          repoHeader.innerHTML = repoName;
+          header.appendChild(repoHeader);
+          Object.keys(diff).forEach((diffKey) => {
+            let row = document.getElementById(diffKey);
+            if (!row) {
+              row = document.createElement("tr");
+              row.id = diffKey;
+              repoBody.appendChild(row);
+            }
+            const column = document.createElement("td");
+            column.innerHTML = diff[diffKey]
+              ? `${diff[diffKey]} ${diffKey}`
+              : "-";
+            row.appendChild(column);
+          });
+        });
+      }
+    </script>
+    <script>
+      let songProgress = 0;
+      const songProgressElement = document.getElementById("song-progress");
+      const songElement = document.getElementById("song");
+      const getCurrentSong = async () => {
+        const response = await fetch(
+          "https://api.spotify.com/v1/me/player/currently-playing",
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + window.spotifyToken,
+            },
+          }
+        );
+        if (response.status === 200) {
+          const currentSong = await response.json();
+          const artist = currentSong.item.artists
+            .map(({ name }) => name)
+            .join(" - ");
+          const name = currentSong.item.name;
+          const songDuration = currentSong.item.duration_ms;
+          const songProgress = currentSong.progress_ms;
+          songProgressElement.max = songDuration / 1000;
+          songProgressElement.value = songProgress / 1000;
+          songElement.innerHTML = `${name} - ${artist}`;
+          setTimeout(
+            () => window.location.reload(),
+            songDuration - songProgress
+          );
+          setInterval(() => {
+            songProgressElement.value = songProgressElement.value + 1;
+          }, 1000);
+        } else {
+          songElement.innerHTML = `-`;
+          setTimeout(() => window.location.reload(), 60 * 1000);
+        }
+      };
+      getCurrentSong();
+    </script>
+    <script>
+      const pad = function (n) {
+        return n < 10 ? "0" + n : n;
+      };
+      function dhm(ms) {
+        days = Math.floor(ms / (24 * 60 * 60 * 1000));
+        daysms = ms % (24 * 60 * 60 * 1000);
+        hours = Math.floor(daysms / (60 * 60 * 1000));
+        hoursms = ms % (60 * 60 * 1000);
+        minutes = Math.floor(hoursms / (60 * 1000));
+        minutesms = ms % (60 * 1000);
+        sec = Math.floor(minutesms / 1000);
+        return `Days: ${days}, Hours: ${pad(hours)}, Minutes: ${pad(
+          minutes
+        )}, seconds: ${pad(sec)}`;
+      }
+
+      const timestamp = new Date("2020-03-18 09:16:00").valueOf();
+      const element = document.getElementById("timer");
+      setInterval(() => {
+        const now = new Date().valueOf();
+        const timeSince = now - timestamp;
+        element.innerHTML = dhm(timeSince);
+      }, 1000);
+    </script>
+  </body>
+</html>
